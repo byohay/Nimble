@@ -18,7 +18,7 @@
 //  IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 //
 
-#if (os(macOS) || os(iOS)) && arch(x86_64)
+//#if (os(macOS) || os(iOS)) && arch(x86_64)
 
 import Foundation
 
@@ -29,6 +29,8 @@ import Foundation
 private func raiseBadInstructionException() {
 	BadInstructionException().raise()
 }
+
+//#define CLS_PTRAUTH_STRIP(pointer) ((uintptr_t)pointer & 0x0000000FFFFFFFFF)
 
 /// A simple NSException subclass. It's not required to subclass NSException (since the exception type is represented in the name) but this helps for identifying the exception through runtime type.
 @objc(BadInstructionException)
@@ -60,14 +62,14 @@ public class BadInstructionException: NSException {
 		}
 		
 		// Read the old thread state
-		var state = old_state.withMemoryRebound(to: x86_thread_state64_t.self, capacity: 1) { return $0.pointee }
+		var state = old_state.withMemoryRebound(to: arm_thread_state64_t.self, capacity: 1) { return $0.pointee }
 		
 		// 1. Decrement the stack pointer
 		state.__rsp -= __uint64_t(MemoryLayout<Int>.size)
 		
 		// 2. Save the old Instruction Pointer to the stack.
 		if let pointer = UnsafeMutablePointer<__uint64_t>(bitPattern: UInt(state.__rsp)) {
-			pointer.pointee = state.__rip
+            pointer.pointee = arm_thread_state64_get_pc(state)
 		} else {
 			return NSNumber(value: KERN_INVALID_ARGUMENT)
 		}
@@ -79,11 +81,11 @@ public class BadInstructionException: NSException {
 		}
 		
 		// Write the new thread state
-		new_state.withMemoryRebound(to: x86_thread_state64_t.self, capacity: 1) { $0.pointee = state }
+		new_state.withMemoryRebound(to: arm_thread_state64_t.self, capacity: 1) { $0.pointee = state }
 		new_stateCnt.pointee = x86_THREAD_STATE64_COUNT
 		
 		return NSNumber(value: KERN_SUCCESS)
 	}
 }
 
-#endif
+///#endif

@@ -18,7 +18,7 @@
 //  IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 //
 
-#if (os(macOS) || os(iOS)) && arch(x86_64)
+//#if (os(macOS) || os(iOS)) && arch(x86_64)
 
 import Foundation
 import Swift
@@ -141,7 +141,7 @@ private func machMessageHandler(_ arg: UnsafeMutableRawPointer) -> UnsafeMutable
 /// NOTE: This function is only intended for use in test harnesses – use in a distributed build is almost certainly a bad choice. If a "BAD_INSTRUCTION" exception is raised, the block will be exited before completion via Objective-C exception. The risks associated with an Objective-C exception apply here: most Swift/Objective-C functions are *not* exception-safe. Memory may be leaked and the program will not necessarily be left in a safe state.
 /// - parameter block: a function without parameters that will be run
 /// - returns: if an EXC_BAD_INSTRUCTION is raised during the execution of `block` then a BadInstructionException will be returned, otherwise `nil`.
-public func catchBadInstruction(in block: @escaping () -> Void) -> BadInstructionException? {
+public func catchBadInstruction(in block: @escaping () -> Void) -> CwlBadInstructionException? {
 	// Suppress Swift runtime's direct triggering of the debugger and exclusivity checking which crashes when we throw past it
 	let previousExclusivity = _swift_disableExclusivityChecking
 	let previousReporting = _swift_reportFatalErrorsToDebugger
@@ -153,7 +153,7 @@ public func catchBadInstruction(in block: @escaping () -> Void) -> BadInstructio
 	}
 	
 	var context = MachContext()
-	var result: BadInstructionException? = nil
+	var result: CwlBadInstructionException? = nil
 	do {
 		var handlerThread: pthread_t? = nil
 		defer {
@@ -181,7 +181,7 @@ public func catchBadInstruction(in block: @escaping () -> Void) -> BadInstructio
 		let currentExceptionPtr = context.currentExceptionPort
 		try kernCheck { context.withUnsafeMutablePointers { masksPtr, countPtr, portsPtr, behaviorsPtr, flavorsPtr in
 			// 3. Apply the mach port as the handler for this thread
-			thread_swap_exception_ports(mach_thread_self(), EXC_MASK_BAD_INSTRUCTION, currentExceptionPtr, Int32(bitPattern: UInt32(EXCEPTION_STATE) | MACH_EXCEPTION_CODES), x86_THREAD_STATE64, masksPtr, countPtr, portsPtr, behaviorsPtr, flavorsPtr)
+			thread_swap_exception_ports(mach_thread_self(), EXC_MASK_BAD_INSTRUCTION, currentExceptionPtr, Int32(bitPattern: UInt32(EXCEPTION_STATE) | MACH_EXCEPTION_CODES), ARM_THREAD_STATE64, masksPtr, countPtr, portsPtr, behaviorsPtr, flavorsPtr)
 		} }
 		
 		defer { context.withUnsafeMutablePointers { masksPtr, countPtr, portsPtr, behaviorsPtr, flavorsPtr in
@@ -195,7 +195,7 @@ public func catchBadInstruction(in block: @escaping () -> Void) -> BadInstructio
 			guard e == 0 else { throw PthreadError.code(e) }
 			
 			// 5. Run the block
-			result = BadInstructionException.catchException(in: block)
+			result = CwlBadInstructionException.catchException(in: block)
 		}
 	} catch {
 		// Should never be reached but this is testing code, don't try to recover, just abort
@@ -205,5 +205,5 @@ public func catchBadInstruction(in block: @escaping () -> Void) -> BadInstructio
 	return result
 }
 	
-#endif
+//#endif
 

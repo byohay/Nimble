@@ -18,7 +18,7 @@
 //  IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 //
 
-#if (os(macOS) || os(iOS)) && arch(x86_64)
+//#if (os(macOS) || os(iOS)) && arch(x86_64)
 
 import Darwin
 
@@ -38,10 +38,13 @@ public func MACH_MSGH_BITS(_ remote: UInt32, _ local: UInt32) -> UInt32 { return
 public let EXC_BAD_INSTRUCTION: UInt32 = 2
 public let EXC_MASK_BAD_INSTRUCTION: UInt32 = 1 << EXC_BAD_INSTRUCTION
 
+public let EXC_BREAKPOINT: UInt32 = 6
+public let EXC_MASK_BREAKPOINT: UInt32 = 1 << EXC_BREAKPOINT
+
 // From /usr/include/mach/i386/thread_status.h
 // #define x86_THREAD_STATE64_COUNT	((mach_msg_type_number_t) \
 //		( sizeof (x86_thread_state64_t) / sizeof (int) ))
-public let x86_THREAD_STATE64_COUNT = UInt32(MemoryLayout<x86_thread_state64_t>.size / MemoryLayout<Int32>.size)
+public let x86_THREAD_STATE64_COUNT = UInt32(MemoryLayout<arm_thread_state64_t>.size / MemoryLayout<Int32>.size)
 
 public let EXC_TYPES_COUNT = 14
 public struct execTypesCountTuple<T: ExpressibleByIntegerLiteral> {
@@ -51,5 +54,5 @@ public struct execTypesCountTuple<T: ExpressibleByIntegerLiteral> {
 	public init() {
 	}
 }
-	
-#endif
+
+//#endif

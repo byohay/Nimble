@@ -73,6 +73,18 @@ typedef struct
 	mach_msg_type_number_t * _Nullable new_stateCnt;
 } bad_instruction_exception_reply_t;
 
+@interface Helper : NSObject
+
++ (void)decrementSpOfState:(arm_thread_state64_t *)state;
+
++ (__uint64_t)getSpOfState:(arm_thread_state64_t *)state;
+
++ (__uint64_t)getIpOfState:(arm_thread_state64_t *)state;
+
++ (void)setIpOfState:(arm_thread_state64_t *)state withValue:(__uint64_t)value;
+
+@end
+
 NS_ASSUME_NONNULL_END
 
 #endif

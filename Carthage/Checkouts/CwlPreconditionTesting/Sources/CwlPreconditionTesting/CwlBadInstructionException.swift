@@ -18,7 +18,7 @@
 //  IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 //
 
-#if (os(macOS) || os(iOS)) && arch(x86_64)
+//#if (os(macOS) || os(iOS)) && arch(x86_64)
 
 import Foundation
 
@@ -60,14 +60,16 @@ public class BadInstructionException: NSException {
 		}
 		
 		// Read the old thread state
-		var state = old_state.withMemoryRebound(to: x86_thread_state64_t.self, capacity: 1) { return $0.pointee }
+		var state = old_state.withMemoryRebound(to: arm_thread_state64_t.self, capacity: 1) { return $0.pointee }
 		
 		// 1. Decrement the stack pointer
-		state.__rsp -= __uint64_t(MemoryLayout<Int>.size)
+        Helper.decrementSp(of: &state)
+//        state, state.__sp - 1)
+//		state.__sp -= __uint64_t(MemoryLayout<Int>.size)
 		
 		// 2. Save the old Instruction Pointer to the stack.
-		if let pointer = UnsafeMutablePointer<__uint64_t>(bitPattern: UInt(state.__rsp)) {
-			pointer.pointee = state.__rip
+        if let pointer = UnsafeMutablePointer<__uint64_t>(bitPattern: UInt(Helper.getSpOf(&state))) {
+            pointer.pointee = Helper.getIpOf(&state)
 		} else {
 			return NSNumber(value: KERN_INVALID_ARGUMENT)
 		}
@@ -75,15 +77,15 @@ public class BadInstructionException: NSException {
 		// 3. Set the Instruction Pointer to the new function's address
 		var f: @convention(c) () -> Void = raiseBadInstructionException
 		withUnsafePointer(to: &f) {
-			state.__rip = $0.withMemoryRebound(to: __uint64_t.self, capacity: 1) { return $0.pointee }
+            $0.withMemoryRebound(to: __uint64_t.self, capacity: 1) { Helper.setIpOf(&state, withValue: $0.pointee) }
 		}
 		
 		// Write the new thread state
-		new_state.withMemoryRebound(to: x86_thread_state64_t.self, capacity: 1) { $0.pointee = state }
+		new_state.withMemoryRebound(to: arm_thread_state64_t.self, capacity: 1) { $0.pointee = state }
 		new_stateCnt.pointee = x86_THREAD_STATE64_COUNT
 		
 		return NSNumber(value: KERN_SUCCESS)
 	}
 }
 
-#endif
+//#endif

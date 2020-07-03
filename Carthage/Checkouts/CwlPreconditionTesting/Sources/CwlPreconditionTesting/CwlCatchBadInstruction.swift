@@ -59,7 +59,7 @@ extension reply_mach_exception_raise_state_t {
 }
 
 /// A structure used to store context associated with the Mach message port
-private struct MachContext {
+struct MachContext {
 	var masks = execTypesCountTuple<exception_mask_t>()
 	var count: mach_msg_type_number_t = 0
 	var ports = execTypesCountTuple<mach_port_t>()
@@ -184,16 +184,18 @@ public func catchBadInstruction(in block: @escaping () -> Void) -> BadInstructio
 			thread_swap_exception_ports(mach_thread_self(), EXC_MASK_BREAKPOINT, currentExceptionPtr, Int32(bitPattern: UInt32(EXCEPTION_STATE) | MACH_EXCEPTION_CODES), ARM_THREAD_STATE64, masksPtr, countPtr, portsPtr, behaviorsPtr, flavorsPtr)
 		} }
 		
-		defer { context.withUnsafeMutablePointers { masksPtr, countPtr, portsPtr, behaviorsPtr, flavorsPtr in
-			// 6. Unapply the mach port
-			_ = thread_swap_exception_ports(mach_thread_self(), EXC_MASK_BREAKPOINT, 0, EXCEPTION_DEFAULT, THREAD_STATE_NONE, masksPtr, countPtr, portsPtr, behaviorsPtr, flavorsPtr)
-		} }
+//		defer { context.withUnsafeMutablePointers { masksPtr, countPtr, portsPtr, behaviorsPtr, flavorsPtr in
+//			// 6. Unapply the mach port
+//			_ = thread_swap_exception_ports(mach_thread_self(), EXC_MASK_BREAKPOINT, 0, EXCEPTION_DEFAULT, THREAD_STATE_NONE, masksPtr, countPtr, portsPtr, behaviorsPtr, flavorsPtr)
+//		} }
 		
 		try withUnsafeMutablePointer(to: &context) { c throws in
 			// 4. Create the thread
 			let e = pthread_create(&handlerThread, nil, machMessageHandler, c)
 			guard e == 0 else { throw PthreadError.code(e) }
 			
+            BadInstructionException.machContext = c
+            
 			// 5. Run the block
 			result = BadInstructionException.catchException(in: block)
 		}

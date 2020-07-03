@@ -27,7 +27,10 @@ import Foundation
 #endif
 
 private func raiseBadInstructionException() {
-	BadInstructionException().raise()
+//    BadInstructionException.machContext?.pointee.withUnsafeMutablePointers { masksPtr, countPtr, portsPtr, behaviorsPtr, flavorsPtr in
+//        _ = thread_swap_exception_ports(mach_thread_self(), EXC_MASK_BREAKPOINT, 0, EXCEPTION_DEFAULT, THREAD_STATE_NONE, masksPtr, countPtr, portsPtr, behaviorsPtr, flavorsPtr)
+//    }
+    BadInstructionException().raise()
 }
 
 /// A simple NSException subclass. It's not required to subclass NSException (since the exception type is represented in the name) but this helps for identifying the exception through runtime type.
@@ -42,6 +45,8 @@ public class BadInstructionException: NSException {
 	required public init?(coder aDecoder: NSCoder) {
 		super.init(coder: aDecoder)
 	}
+    
+    static var machContext: UnsafeMutablePointer<MachContext>?
 	
 	/// An Objective-C callable function, invoked from the `mach_exc_server` callback function `catch_mach_exception_raise_state` to push the `raiseBadInstructionException` function onto the stack.
 	@objc(receiveReply:)
@@ -63,16 +68,17 @@ public class BadInstructionException: NSException {
 		var state = old_state.withMemoryRebound(to: arm_thread_state64_t.self, capacity: 1) { return $0.pointee }
 		
 		// 1. Decrement the stack pointer
-        Helper.decrementSp(of: &state)
+//        Helper.decrementSp(of: &state)
 //        state, state.__sp - 1)
 //		state.__sp -= __uint64_t(MemoryLayout<Int>.size)
 		
 		// 2. Save the old Instruction Pointer to the stack.
-        if let pointer = UnsafeMutablePointer<__uint64_t>(bitPattern: UInt(Helper.getSpOf(&state))) {
-            pointer.pointee = Helper.getIpOf(&state)
-		} else {
-			return NSNumber(value: KERN_INVALID_ARGUMENT)
-		}
+        state.__lr = state.__pc
+//        if let pointer = UnsafeMutablePointer<__uint64_t>(bitPattern: UInt(state.__lr)) {
+//            pointer.pointee = Helper.getIpOf(&state)
+//		} else {
+//			return NSNumber(value: KERN_INVALID_ARGUMENT)
+//		}
 		
 		// 3. Set the Instruction Pointer to the new function's address
 		var f: @convention(c) () -> Void = raiseBadInstructionException

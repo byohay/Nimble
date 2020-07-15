@@ -34,17 +34,31 @@ public func MACH_MSGH_BITS(_ remote: UInt32, _ local: UInt32) -> UInt32 { return
 
 // From /usr/include/mach/exception_types.h
 // #define EXC_BAD_INSTRUCTION	2	/* Instruction failed */
+// #define EXC_BREAKPOINT       6       /* Trace, breakpoint, etc. */
 // #define EXC_MASK_BAD_INSTRUCTION	(1 << EXC_BAD_INSTRUCTION)
+// #define EXC_MASK_BREAKPOINT (1 << EXC_BREAKPOINT)
 public let EXC_BAD_INSTRUCTION: UInt32 = 2
-public let EXC_MASK_BAD_INSTRUCTION: UInt32 = 1 << EXC_BAD_INSTRUCTION
-
 public let EXC_BREAKPOINT: UInt32 = 6
+public let EXC_MASK_BAD_INSTRUCTION: UInt32 = 1 << EXC_BAD_INSTRUCTION
 public let EXC_MASK_BREAKPOINT: UInt32 = 1 << EXC_BREAKPOINT
 
+#if (os(macOS) || os(iOS)) && arch(x86_64)
 // From /usr/include/mach/i386/thread_status.h
 // #define x86_THREAD_STATE64_COUNT	((mach_msg_type_number_t) \
 //		( sizeof (x86_thread_state64_t) / sizeof (int) ))
-public let x86_THREAD_STATE64_COUNT = UInt32(MemoryLayout<arm_thread_state64_t>.size / MemoryLayout<Int32>.size)
+public let THREAD_STATE_COUNT = UInt32(MemoryLayout<x86_thread_state64_t>.size / MemoryLayout<Int32>.size)
+#elseif os(iOS)
+// From /usr/include/mach/arm/thread_status.h
+// #define ARM_THREAD_STATE64_COUNT ((mach_msg_type_number_t) \
+//  	(sizeof (arm_thread_state64_t)/sizeof(uint32_t)))
+public let THREAD_STATE_COUNT = UInt32(MemoryLayout<arm_thread_state64_t>.size / MemoryLayout<Int32>.size)
+#endif
+
+#if (os(macOS) || os(iOS)) && arch(x86_64)
+public typealias thread_state64_t = x86_thread_state64_t
+#elseif os(iOS)
+public typealias thread_state64_t = arm_thread_state64_t
+#endif
 
 public let EXC_TYPES_COUNT = 14
 public struct execTypesCountTuple<T: ExpressibleByIntegerLiteral> {

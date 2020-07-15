@@ -49,28 +49,5 @@ kern_return_t catch_mach_exception_raise_state_identity(mach_port_t exception_po
 	return KERN_FAILURE;
 }
 
-@implementation Helper
-
-#define CLS_PTRAUTH_STRIP(pointer) ((uintptr_t)pointer & 0x0000000FFFFFFFFF)
-
-+ (void)decrementSpOfState:(arm_thread_state64_t *)state {
-    arm_thread_state64_set_sp(*state, [self getSpOfState:state] - sizeof(__uint64_t));
-}
-
-+ (__uint64_t)getSpOfState:(arm_thread_state64_t *)state {
-    return CLS_PTRAUTH_STRIP(arm_thread_state64_get_sp(*state));
-}
-
-+ (__uint64_t)getIpOfState:(arm_thread_state64_t *)state {
-    return CLS_PTRAUTH_STRIP(arm_thread_state64_get_pc(*state));
-}
-
-+ (void)setIpOfState:(arm_thread_state64_t *)state withValue:(__uint64_t)value {
-    arm_thread_state64_set_pc_fptr(*state, value);
-}
-
-
-@end
-
 #endif /* TARGET_OS_OSX || TARGET_OS_IOS */
 #endif /* __APPLE__ */

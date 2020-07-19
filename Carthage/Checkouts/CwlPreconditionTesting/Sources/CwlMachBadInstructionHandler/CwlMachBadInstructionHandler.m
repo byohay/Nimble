@@ -25,6 +25,11 @@
 #import "mach_excServer.h"
 #import "CwlMachBadInstructionHandler.h"
 
+#import <dlfcn.h>
+#import <mach-o/dyld.h>
+#import <mach-o/loader.h>
+
+
 @protocol BadInstructionReply <NSObject>
 +(NSNumber *)receiveReply:(NSValue *)value;
 @end
@@ -47,6 +52,83 @@ kern_return_t catch_mach_exception_raise(mach_port_t exception_port, mach_port_t
 kern_return_t catch_mach_exception_raise_state_identity(mach_port_t exception_port, mach_port_t thread, mach_port_t task, exception_type_t exception, mach_exception_data_t code, mach_msg_type_number_t codeCnt, int *flavor, thread_state_t old_state, mach_msg_type_number_t old_stateCnt, thread_state_t new_state, mach_msg_type_number_t *new_stateCnt) {
 	assert(false);
 	return KERN_FAILURE;
+}
+
+static NSDictionary<NSString *, NSNumber *> * LTGetImageNameToSlide() {
+  NSMutableDictionary<NSString *, NSNumber *> *imageNameToSlide;
+  for (uint32_t i = 0; i < _dyld_image_count(); ++i) {
+    imageNameToSlide[[NSString stringWithUTF8String:_dyld_get_image_name(i)]] = @(_dyld_get_image_vmaddr_slide(i));
+  }
+    
+  return imageNameToSlide;
+}
+
+typedef struct {
+  /// Constructs a new segment info. Used for emplacing the struct directly into a vector.
+//  LTSegmentInfo(uint64_t start, uint64_t length) : start(start), length(length) {};
+
+  /// Start of the range.
+  uint64_t start;
+
+  /// Length of the range.
+  uint64_t length;
+} LTSegmentInfo;
+
+static bool LTIsMachHeader64Bit(const struct mach_header *header) {
+  return header->magic == MH_MAGIC_64 || header->magic == MH_CIGAM_64;
+}
+
+static uintptr_t LTGetPostHeaderPointer(const struct mach_header *header) {
+  return (uintptr_t)header + (LTIsMachHeader64Bit(header) ? sizeof(struct mach_header_64) :
+                              sizeof(struct mach_header));
+}
+
+NSArray<NSValue *> *LTGetSegments() {
+  NSMutableArray<NSValue *> *segments = [NSMutableArray array];
+
+  NSDictionary<NSString *, NSNumber *> *slides = LTGetImageNameToSlide();
+
+  for (uint32_t i = 0; i < _dyld_image_count(); ++i) {
+    NSString *imageName = [NSString stringWithUTF8String:_dyld_get_image_name(i)];
+
+    const struct mach_header *header = (const struct mach_header *)_dyld_get_image_header(i);
+    uintptr_t pointer = LTGetPostHeaderPointer(header);
+
+    for (uint32_t j = 0; j < header->ncmds; ++j) {
+      const struct load_command * loadCommand = (const struct load_command *)pointer;
+      if (loadCommand->cmd == LC_SEGMENT) {
+        struct segment_command *segmentCommand = (struct segment_command *)loadCommand;
+      
+          LTSegmentInfo segmentInfo;
+          segmentInfo.start = segmentCommand->vmaddr + slides[imageName].unsignedIntValue;
+          segmentInfo.length = segmentCommand->vmsize;
+          
+        NSValue *value = [NSValue valueWithBytes:&segmentInfo objCType:@encode(LTSegmentInfo)];
+          
+          [segments addObject:value];
+      } else if (loadCommand->cmd == LC_SEGMENT_64) {
+          struct segment_command_64 *segmentCommand = (struct segment_command_64 *)loadCommand;
+          LTSegmentInfo segmentInfo;
+          segmentInfo.start = segmentCommand->vmaddr + slides[imageName].unsignedIntValue;
+          segmentInfo.length = segmentCommand->vmsize;
+          
+        NSValue *value = [NSValue valueWithBytes:&segmentInfo objCType:@encode(LTSegmentInfo)];
+          
+          [segments addObject:value];
+      }
+
+      pointer += loadCommand->cmdsize;
+    }
+  }
+
+  return segments;
+}
+
+BOOL isExceptionComingFromSwift(__uint64_t address) {
+    Dl_info info;
+    dladdr((const void *)address, &info);
+    
+    return strcmp(info.dli_fname, "/usr/lib/swift/libswiftCore.dylib") == 0;
 }
 
 #endif /* TARGET_OS_OSX || TARGET_OS_IOS */

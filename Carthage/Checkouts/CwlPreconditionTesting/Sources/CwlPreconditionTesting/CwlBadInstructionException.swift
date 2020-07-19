@@ -83,9 +83,11 @@ public class BadInstructionException: NSException {
 			} else {
                 return NSNumber(value: KERN_INVALID_ARGUMENT)
 			}
-        #elseif os(iOS)
-            state.__lr = state.__pc
-        #endif
+    #elseif os(iOS)
+        guard isExceptionComingFromSwift(state.__lr) else { return NSNumber(value: KERN_FAILURE) }
+    
+        state.__lr = state.__pc
+    #endif
 		
 		// 3. Set the Instruction Pointer to the new function's address
 		var f: @convention(c) () -> Void = raiseBadInstructionException

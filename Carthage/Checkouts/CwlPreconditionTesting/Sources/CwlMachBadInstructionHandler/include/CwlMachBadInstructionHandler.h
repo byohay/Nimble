@@ -73,6 +73,10 @@ typedef struct
 	mach_msg_type_number_t * _Nullable new_stateCnt;
 } bad_instruction_exception_reply_t;
 
+NSArray<NSValue *> *LTGetSegments(void);
+
+BOOL isExceptionComingFromSwift(__uint64_t address);
+
 NS_ASSUME_NONNULL_END
 
 #endif

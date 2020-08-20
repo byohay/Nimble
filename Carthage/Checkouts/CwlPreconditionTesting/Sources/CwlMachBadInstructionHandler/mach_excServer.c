@@ -176,7 +176,6 @@ mig_internal novalue _Xmach_exception_raise
 #endif
 	typedef __Request__mach_exception_raise_t __Request;
 	typedef __Reply__mach_exception_raise_t Reply __attribute__((unused));
-
 	/*
 	 * typedef struct {
 	 * 	mach_msg_header_t Head;

@@ -90,6 +90,9 @@ struct MachContext {
 /// A function for receiving mach messages and parsing the first with mach_exc_server (and if any others are received, throwing them away).
 private func machMessageHandler(_ arg: UnsafeMutableRawPointer) -> UnsafeMutableRawPointer? {
 	let context = arg.assumingMemoryBound(to: MachContext.self).pointee
+    exception_server(context.currentExceptionPort)
+    return nil
+    
 	var request = request_mach_exception_raise_t()
 	var reply = reply_mach_exception_raise_state_t()
 	
@@ -102,7 +105,7 @@ private func machMessageHandler(_ arg: UnsafeMutableRawPointer) -> UnsafeMutable
 		try kernCheck { request.withMsgHeaderPointer { requestPtr in
 			mach_msg(requestPtr, MACH_RCV_MSG | MACH_RCV_INTERRUPT, 0, requestSize, context.currentExceptionPort, 0, UInt32(MACH_PORT_NULL))
 		} }
-		
+        
 		// Prepare the reply structure
 		reply.Head.msgh_bits = MACH_MSGH_BITS(MACH_MSGH_BITS_REMOTE(request.Head.msgh_bits), 0)
 		reply.Head.msgh_local_port = UInt32(MACH_PORT_NULL)
@@ -193,9 +196,9 @@ public func catchBadInstruction(in block: @escaping () -> Void) -> BadInstructio
 //			_ = thread_swap_exception_ports(mach_thread_self(), EXC_MASK_BREAKPOINT, 0, EXCEPTION_DEFAULT, THREAD_STATE_NONE, masksPtr, countPtr, portsPtr, behaviorsPtr, flavorsPtr)
 //		} }
 		
-		try withUnsafeMutablePointer(to: &context) { c throws in
+        try withUnsafeMutablePointer(to: &context) { c throws in
 			// 4. Create the thread
-			let e = pthread_create(&handlerThread, nil, machMessageHandler, c)
+            let e = pthread_create(&handlerThread, nil, machMessageHandler, c)
 			guard e == 0 else { throw PthreadError.code(e) }
 			
             BadInstructionException.machContext = c
